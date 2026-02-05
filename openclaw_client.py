@@ -39,7 +39,7 @@ class OpenClawClient:
                     "id": "cli",
                     "version": "1.0.0",
                     "platform": "macos",
-                    "mode": "operator"
+                    "mode": "cli"  # Valid modes: webchat, cli, ui, backend, node, probe, test
                 },
                 "role": "operator",
                 "scopes": ["operator.read", "operator.write"],
