@@ -85,17 +85,29 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     cd ..
     
-    # Download default voice model
-    echo "  Downloading voice model (en_US-lessac-medium)..."
+    # Download voice models
+    echo "  Downloading voice models..."
     mkdir -p ./models/tts
     cd ./models/tts
     
+    # Ukrainian voice (Lada - medium quality)
+    if [ ! -f "uk_UA-lada-x_low.onnx" ]; then
+        echo "    Downloading Ukrainian voice (Lada)..."
+        curl -L "https://huggingface.co/rhasspy/piper-voices/resolve/main/uk/uk_UA/lada/x_low/uk_UA-lada-x_low.onnx" -o uk_UA-lada-x_low.onnx
+        curl -L "https://huggingface.co/rhasspy/piper-voices/resolve/main/uk/uk_UA/lada/x_low/uk_UA-lada-x_low.onnx.json" -o uk_UA-lada-x_low.onnx.json
+        echo "    ✓ Ukrainian voice downloaded"
+    else
+        echo "    ✓ Ukrainian voice already exists"
+    fi
+    
+    # English voice (Lessac - medium quality)
     if [ ! -f "en_US-lessac-medium.onnx" ]; then
+        echo "    Downloading English voice (Lessac)..."
         curl -L "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx" -o en_US-lessac-medium.onnx
         curl -L "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json" -o en_US-lessac-medium.onnx.json
-        echo "  ✓ Voice model downloaded"
+        echo "    ✓ English voice downloaded"
     else
-        echo "  ✓ Voice model already exists"
+        echo "    ✓ English voice already exists"
     fi
     
     cd ../..
@@ -107,10 +119,13 @@ with open('config.json', 'r') as f:
     config = json.load(f)
 config['ttsEngine'] = 'piper'
 config['piperBinary'] = './bin/piper'
-config['piperModel'] = './models/tts/en_US-lessac-medium.onnx'
+config['piperModelUK'] = './models/tts/uk_UA-lada-x_low.onnx'
+config['piperModelEN'] = './models/tts/en_US-lessac-medium.onnx'
+config['piperModel'] = './models/tts/uk_UA-lada-x_low.onnx'  # Default to Ukrainian
+config['language'] = 'uk'
 with open('config.json', 'w') as f:
     json.dump(config, f, indent=2)
-print("  ✓ Config updated to use Piper")
+print("  ✓ Config updated to use Piper with Ukrainian voice")
 EOF
 fi
 

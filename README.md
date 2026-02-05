@@ -8,6 +8,7 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 - 🗣️ **Local Whisper transcription** (no API calls, free)
 - 🤖 **OpenClaw integration** - sends transcription to your local OpenClaw instance
 - 🔊 **Audio response** - speaks the answer back using TTS
+- 🇺🇦 **Ukrainian language support** - native Ukrainian TTS voice (Lada)
 
 ## How it works
 
@@ -70,9 +71,12 @@ Edit `config.json`:
   "hotkey": "cmd+shift+space",
   "openclawGateway": "ws://127.0.0.1:18789",
   "whisperModel": "base",
-  "ttsEngine": "say",
+  "ttsEngine": "piper",
+  "language": "uk",
   "piperBinary": "./bin/piper",
-  "piperModel": "./models/tts/en_US-lessac-medium.onnx"
+  "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
+  "piperModelEN": "./models/tts/en_US-lessac-medium.onnx",
+  "piperModel": "./models/tts/uk_UA-lada-x_low.onnx"
 }
 ```
 
@@ -88,8 +92,13 @@ Edit `config.json`:
   - `large`: best quality (~1.5GB)
 - `ttsEngine`: Text-to-speech engine
   - `say`: macOS built-in (fast, decent quality)
-  - `piper`: Local TTS (better quality, more natural)
+  - `piper`: Local TTS (better quality, more natural, **supports Ukrainian**)
   - `sag`: ElevenLabs via skill (requires API key, cloud-based)
+- `language`: Language for Piper TTS (`uk` or `en`)
+  - `uk`: Ukrainian voice (Lada) - **default**
+  - `en`: English voice (Lessac)
+- `piperModelUK`: Path to Ukrainian voice model
+- `piperModelEN`: Path to English voice model
 
 ## Usage
 

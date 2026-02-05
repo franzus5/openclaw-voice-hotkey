@@ -172,7 +172,16 @@ def speak_text(text):
             subprocess.run(["sag", text])
         elif tts_engine == "piper":
             piper_binary = CONFIG.get("piperBinary", "./bin/piper")
-            piper_model = CONFIG.get("piperModel", "./models/tts/en_US-lessac-medium.onnx")
+            
+            # Auto-select model based on language
+            language = CONFIG.get("language", "uk")
+            if language == "uk":
+                piper_model = CONFIG.get("piperModelUK", "./models/tts/uk_UA-lada-x_low.onnx")
+            elif language == "en":
+                piper_model = CONFIG.get("piperModelEN", "./models/tts/en_US-lessac-medium.onnx")
+            else:
+                # Fallback to explicit piperModel or default
+                piper_model = CONFIG.get("piperModel", "./models/tts/uk_UA-lada-x_low.onnx")
             
             # Piper: echo "text" | piper --model model.onnx --output_file output.wav && afplay output.wav
             temp_audio = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)

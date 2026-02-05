@@ -56,12 +56,28 @@ def test_tts():
             if Path(piper_binary).exists():
                 print(f"  ✅ Piper binary found: {piper_binary}")
                 
-                piper_model = CONFIG.get("piperModel", "./models/tts/en_US-lessac-medium.onnx")
-                if Path(piper_model).exists():
-                    print(f"  ✅ Piper model found: {piper_model}")
+                # Check both language models
+                models_found = []
+                
+                piper_model_uk = CONFIG.get("piperModelUK", "./models/tts/uk_UA-lada-x_low.onnx")
+                if Path(piper_model_uk).exists():
+                    print(f"  ✅ Ukrainian voice model found: {piper_model_uk}")
+                    models_found.append("uk")
+                else:
+                    print(f"  ⚠️  Ukrainian voice model not found: {piper_model_uk}")
+                
+                piper_model_en = CONFIG.get("piperModelEN", "./models/tts/en_US-lessac-medium.onnx")
+                if Path(piper_model_en).exists():
+                    print(f"  ✅ English voice model found: {piper_model_en}")
+                    models_found.append("en")
+                else:
+                    print(f"  ⚠️  English voice model not found: {piper_model_en}")
+                
+                if models_found:
+                    print(f"  ✅ Available languages: {', '.join(models_found)}")
                     return True
                 else:
-                    print(f"  ❌ Piper model not found: {piper_model}")
+                    print("  ❌ No voice models found")
                     print("     Run ./setup.sh and choose to install Piper")
                     return False
             else:

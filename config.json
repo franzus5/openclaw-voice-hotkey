@@ -3,6 +3,9 @@
   "openclawGateway": "ws://127.0.0.1:18789",
   "whisperModel": "base",
   "ttsEngine": "say",
+  "language": "uk",
   "piperBinary": "./bin/piper",
-  "piperModel": "./models/tts/en_US-lessac-medium.onnx"
+  "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
+  "piperModelEN": "./models/tts/en_US-lessac-medium.onnx",
+  "piperModel": "./models/tts/uk_UA-lada-x_low.onnx"
 }
