@@ -248,33 +248,14 @@ def send_to_openclaw(text):
         
         print(f"   Using: {openclaw_binary}")
         
-        # Create temp file with the message
-        temp_msg = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8')
-        temp_msg.write(text)
-        temp_msg.close()
-        
-        # Send via openclaw CLI
-        # This simulates typing the message in the terminal
+        # Inject as system event (like typing in terminal)
+        # This triggers the agent in the main session
         result = subprocess.run(
-            [openclaw_binary, "chat", "send", "--message", text, "--session", "main"],
+            [openclaw_binary, "system", "event", "--text", text, "--mode", "now"],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=10
         )
-        
-        # Clean up
-        os.remove(temp_msg.name)
-        
-        if result.returncode != 0:
-            print(f"   ⚠️  OpenClaw CLI error: {result.stderr}")
-            # Fallback: inject as system event
-            print(f"   Trying alternative method...")
-            result = subprocess.run(
-                [openclaw_binary, "inject", text],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
         
         # For voice assistant, we don't wait for full response
         # Just acknowledge that message was sent
