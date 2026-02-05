@@ -111,22 +111,26 @@ def save_audio():
     
     print(f"   Saving {len(audio_frames)} audio chunks...")
     
-    temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    # Save to current directory instead of /tmp to avoid path issues
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    temp_file = f"./recording_{timestamp}.wav"
     
-    wf = wave.open(temp_file.name, 'wb')
+    wf = wave.open(temp_file, 'wb')
     wf.setnchannels(1)
     wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
     wf.setframerate(16000)
     wf.writeframes(b''.join(audio_frames))
     wf.close()
     
-    file_size = os.path.getsize(temp_file.name)
-    print(f"   Saved to: {temp_file.name} ({file_size} bytes)")
+    file_size = os.path.getsize(temp_file)
+    print(f"   Saved to: {temp_file} ({file_size} bytes)")
     
-    return temp_file.name
+    return temp_file
 
 def transcribe_audio(audio_file):
     """Transcribe audio using Whisper CLI"""
+    txt_file = None
     try:
         # Check audio file
         file_size = os.path.getsize(audio_file)
@@ -145,31 +149,57 @@ def transcribe_audio(audio_file):
         
         print(f"   Using Whisper model: {model}, language: {whisper_lang}")
         
+        # Check if whisper is available
+        whisper_check = subprocess.run(["which", "whisper"], capture_output=True, text=True)
+        if whisper_check.returncode != 0:
+            print("   ❌ Whisper CLI not found! Run: pip install openai-whisper")
+            return None
+        
+        print(f"   Whisper binary: {whisper_check.stdout.strip()}")
+        
+        # Run whisper
+        cmd = ["whisper", audio_file, "--model", model, "--output_format", "txt", "--language", whisper_lang]
+        print(f"   Running: {' '.join(cmd)}")
+        
         result = subprocess.run(
-            ["whisper", audio_file, "--model", model, "--output_format", "txt", "--language", whisper_lang],
+            cmd,
             capture_output=True,
             text=True,
             timeout=60
         )
         
         # Debug output
-        if result.returncode != 0:
-            print(f"   ⚠️  Whisper stderr: {result.stderr}")
+        print(f"   Whisper return code: {result.returncode}")
+        if result.stdout:
+            print(f"   Whisper stdout: {result.stdout[:200]}")
+        if result.stderr:
+            print(f"   Whisper stderr: {result.stderr[:200]}")
         
         # Whisper writes output to <audio_file>.txt
         txt_file = audio_file.replace(".wav", ".txt")
+        print(f"   Looking for output: {txt_file}")
+        
         if os.path.exists(txt_file):
             with open(txt_file) as f:
                 text = f.read().strip()
-            os.remove(txt_file)
             
             if text:
                 print(f"   ✅ Transcribed: {len(text)} characters")
+                print(f"   Text: {text[:100]}")
+            else:
+                print("   ⚠️  Output file is empty")
             
             return text
         else:
-            print(f"   ⚠️  Output file not found: {txt_file}")
+            print(f"   ❌ Output file not found: {txt_file}")
+            # List files in directory
+            import glob
+            similar = glob.glob(audio_file.replace(".wav", ".*"))
+            print(f"   Files with same name: {similar}")
         
+        return None
+    except subprocess.TimeoutExpired:
+        print("   ❌ Whisper timeout (60s)")
         return None
     except Exception as e:
         print(f"❌ Transcription error: {e}")
@@ -177,8 +207,10 @@ def transcribe_audio(audio_file):
         traceback.print_exc()
         return None
     finally:
-        # Clean up audio file
-        if os.path.exists(audio_file):
+        # Clean up files
+        if txt_file and os.path.exists(txt_file):
+            os.remove(txt_file)
+        if audio_file and os.path.exists(audio_file):
             os.remove(audio_file)
 
 async def send_to_openclaw(text):
