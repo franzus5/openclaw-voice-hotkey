@@ -10,10 +10,12 @@ import tempfile
 import os
 import sys
 import time
+import asyncio
 from pathlib import Path
 from pynput import keyboard
 import pyaudio
 import wave
+from openclaw_client import OpenClawClient
 
 # Load config
 CONFIG_FILE = Path(__file__).parent / "config.json"
@@ -224,108 +226,55 @@ def transcribe_audio(audio_file):
             os.remove(audio_file)
 
 def send_to_openclaw(text):
-    """Send message to OpenClaw and get response"""
+    """Send message to OpenClaw via WebSocket and get response"""
     try:
-        print(f"   Sending via OpenClaw CLI...")
+        print(f"   Sending via OpenClaw WebSocket...")
         
-        # Path to openclaw binary (use configured or find it)
-        openclaw_binary = CONFIG.get("openclawBinary")
-        if not openclaw_binary:
-            # Try to find it in common locations
-            possible_paths = [
-                os.path.expanduser("~/.nvm/versions/node/v24.13.0/bin/openclaw"),
-                "/usr/local/bin/openclaw",
-                "/opt/homebrew/bin/openclaw"
-            ]
-            for path in possible_paths:
-                if os.path.exists(path):
-                    openclaw_binary = path
-                    break
-        
-        if not openclaw_binary or not os.path.exists(openclaw_binary):
-            print(f"   ❌ OpenClaw binary not found!")
-            print(f"      Add 'openclawBinary' to config.json with full path")
-            return None
-        
-        print(f"   Using: {openclaw_binary}")
-        
-        # Two-step approach:
-        # 1. Get response without delivery (for TTS)
-        # 2. Deliver to Telegram separately
-        
-        # Step 1: Get agent response
-        cmd_get = [
-            openclaw_binary, "agent",
-            "--message", text,
-            "--json"
-        ]
-        
-        # Add user ID if configured (for session routing)
+        # Get gateway config
+        gateway_url = CONFIG.get("gatewayUrl", "ws://127.0.0.1:18789")
+        gateway_token = CONFIG.get("gatewayToken")  # Optional
         telegram_user_id = CONFIG.get("telegramUserId")
-        if telegram_user_id:
-            cmd_get.extend(["--to", str(telegram_user_id)])
         
-        print(f"   Getting agent response...")
-        result = subprocess.run(
-            cmd_get,
-            capture_output=True,
-            text=True,
-            timeout=60  # Agent can take longer
-        )
+        print(f"   Connecting to {gateway_url}...")
         
-        if result.returncode != 0:
-            print(f"   ⚠️  Agent error: {result.stderr}")
-            return None
+        # Run async WebSocket communication
+        response_text = asyncio.run(_send_via_websocket(
+            gateway_url, 
+            gateway_token, 
+            text, 
+            telegram_user_id
+        ))
         
-        # Parse JSON response
-        response_text = None
-        try:
-            response_data = json.loads(result.stdout)
-            response_text = response_data.get("reply", "")
-            
-            if not response_text:
-                print(f"   ⚠️  Empty response from agent")
-                return None
-            
+        if response_text:
             print(f"   ✅ Got response ({len(response_text)} chars)")
-            
-        except json.JSONDecodeError as e:
-            print(f"   ⚠️  Could not parse JSON response: {e}")
-            print(f"   Raw output: {result.stdout[:200]}")
+            return response_text
+        else:
+            print(f"   ⚠️  No response received")
             return None
         
-        # Step 2: Deliver to Telegram
-        if telegram_user_id and response_text:
-            print(f"   Delivering to Telegram...")
-            cmd_deliver = [
-                openclaw_binary, "message", "send",
-                "--channel", "telegram",
-                "--target", str(telegram_user_id),
-                "--message", response_text
-            ]
-            
-            deliver_result = subprocess.run(
-                cmd_deliver,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            if deliver_result.returncode == 0:
-                print(f"   ✅ Delivered to Telegram")
-            else:
-                print(f"   ⚠️  Delivery warning: {deliver_result.stderr[:100]}")
-        
-        return response_text
-        
-    except subprocess.TimeoutExpired:
-        print(f"   ❌ Agent timeout (60s)")
-        return None
     except Exception as e:
         print(f"   ❌ Error: {e}")
         import traceback
         traceback.print_exc()
         return None
+
+
+async def _send_via_websocket(gateway_url: str, token: str, message: str, to: str = None):
+    """Async helper for WebSocket communication"""
+    client = OpenClawClient(gateway_url, token)
+    
+    try:
+        # Connect to gateway
+        if not await client.connect():
+            return None
+        
+        # Send message and get response
+        response = await client.send_message(message, to=to, channel="telegram")
+        
+        return response
+        
+    finally:
+        await client.disconnect()
 
 def speak_text(text):
     """Speak text using TTS"""

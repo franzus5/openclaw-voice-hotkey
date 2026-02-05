@@ -15,9 +15,10 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 1. Press and **hold** `Cmd+Shift+Space` → recording starts
 2. Speak your question while holding
 3. Release hotkey → recording stops, Whisper transcribes locally
-4. Text sent to OpenClaw via CLI (`openclaw agent --deliver`)
-5. OpenClaw processes request and replies to Telegram
-6. Response is also spoken aloud via TTS (macOS `say` or Piper)
+4. Text sent to OpenClaw via **WebSocket** (direct gateway connection)
+5. Agent processes request and returns response
+6. Response is spoken aloud via TTS (macOS `say` or Piper)
+7. Response is also delivered to your Telegram chat
 
 ## Requirements
 
@@ -109,11 +110,11 @@ Edit `config.json`:
   "language": "uk",
   "inputDevice": null,
   "telegramUserId": "YOUR_TELEGRAM_USER_ID",
-  "openclawBinary": "/Users/YOUR_USERNAME/.nvm/versions/node/v24.13.0/bin/openclaw",
+  "gatewayUrl": "ws://127.0.0.1:18789",
+  "gatewayToken": null,
   "piperBinary": "./bin/piper",
   "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
-  "piperModelEN": "./models/tts/en_US-lessac-medium.onnx",
-  "piperModel": "./models/tts/uk_UA-lada-x_low.onnx"
+  "piperModelEN": "./models/tts/en_US-lessac-medium.onnx"
 }
 ```
 
@@ -140,9 +141,12 @@ Edit `config.json`:
 - `telegramUserId`: Your Telegram user ID (for session routing)
   - Find it by sending `/start` to `@userinfobot` on Telegram
   - Optional but recommended for proper session management
-- `openclawBinary`: Full path to OpenClaw CLI (auto-detected if not set)
-  - Example: `~/.nvm/versions/node/v24.13.0/bin/openclaw`
-  - If OpenClaw is not in PATH, set this explicitly
+- `gatewayUrl`: OpenClaw Gateway WebSocket URL
+  - Default: `ws://127.0.0.1:18789`
+  - Change if your gateway runs on different host/port
+- `gatewayToken`: Gateway authentication token (optional)
+  - Set to `null` for local development (no auth)
+  - Required if your gateway has `OPENCLAW_GATEWAY_TOKEN` set
 - `piperModelUK`: Path to Ukrainian voice model
 - `piperModelEN`: Path to English voice model
 
