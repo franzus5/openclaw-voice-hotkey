@@ -229,25 +229,33 @@ def on_press(key):
             current_modifiers.add('shift')
         
         # Check for Cmd+Shift+Space combination
+        # Start recording when Space pressed while holding Cmd+Shift
         if key == keyboard.Key.space:
             if 'cmd' in current_modifiers and 'shift' in current_modifiers:
-                print("🎤 Hotkey detected: Cmd+Shift+Space")
-                start_recording()
+                if not is_recording:
+                    print("🎤 Hotkey detected: Cmd+Shift+Space")
+                    print("   Hold the keys to record, release to stop")
+                    start_recording()
     except AttributeError:
         pass
 
 def on_release(key):
     """Handle key release"""
     try:
-        # Remove released modifiers
+        # Remove released modifiers from tracking
         if key == keyboard.Key.cmd or key == keyboard.Key.cmd_r:
             current_modifiers.discard('cmd')
         elif key == keyboard.Key.shift or key == keyboard.Key.shift_r:
             current_modifiers.discard('shift')
         
-        # Stop recording when Space is released (if we were recording)
-        if key == keyboard.Key.space and is_recording:
-            stop_recording()
+        # Stop recording when ANY of the hotkey keys is released
+        # (Space, Cmd, or Shift)
+        if is_recording:
+            if (key == keyboard.Key.space or 
+                key == keyboard.Key.cmd or key == keyboard.Key.cmd_r or
+                key == keyboard.Key.shift or key == keyboard.Key.shift_r):
+                print("   Released hotkey, stopping recording...")
+                stop_recording()
         
         # Exit on Escape
         if key == keyboard.Key.esc:
@@ -260,8 +268,16 @@ def main():
     """Main entry point"""
     print("🎙️  OpenClaw Voice Hotkey Assistant")
     print(f"📍 Gateway: {CONFIG['openclawGateway']}")
-    print(f"🔑 Hotkey: {CONFIG['hotkey']}")
-    print("Press Cmd+Shift+Space to record, Escape to exit")
+    print(f"🔑 Hotkey: {CONFIG['hotkey']} (Push-to-talk)")
+    print()
+    print("💡 Usage:")
+    print("   1. Press and HOLD Cmd+Shift+Space")
+    print("   2. Speak while holding")
+    print("   3. Release any key to stop recording")
+    print("   4. Press Escape to exit")
+    print()
+    print("⚠️  Make sure Accessibility permissions are granted!")
+    print("   System Settings → Privacy & Security → Accessibility → Terminal")
     print()
     
     # Start listening for hotkeys
