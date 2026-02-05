@@ -219,22 +219,66 @@ async def send_to_openclaw(text):
     
     try:
         async with websockets.connect(gateway_url) as websocket:
-            # Send message (format depends on OpenClaw protocol)
+            print(f"   Connected to OpenClaw gateway")
+            
+            # Wait for initial messages (challenge, etc)
+            while True:
+                try:
+                    msg = await asyncio.wait_for(websocket.recv(), timeout=2.0)
+                    data = json.loads(msg)
+                    print(f"   ← Received: {data.get('type', 'unknown')} {data.get('event', '')}")
+                    
+                    # If we get a challenge, respond
+                    if data.get('event') == 'connect.challenge':
+                        # Respond to challenge (if needed)
+                        continue
+                    
+                    # If gateway is ready, break
+                    if data.get('type') in ['ready', 'event'] and data.get('event') != 'connect.challenge':
+                        break
+                        
+                except asyncio.TimeoutError:
+                    # No more initial messages, proceed
+                    break
+            
+            # Send chat message
             message = {
                 "type": "chat.send",
+                "sessionKey": "agent:main:main",
                 "message": text
             }
+            print(f"   → Sending message: {text[:50]}...")
             await websocket.send(json.dumps(message))
             
-            # Receive response
-            response = await websocket.recv()
-            data = json.loads(response)
-            
-            # Extract text from response (adjust based on OpenClaw protocol)
-            return data.get("text", str(data))
+            # Wait for response
+            print(f"   Waiting for AI response...")
+            while True:
+                response_msg = await asyncio.wait_for(websocket.recv(), timeout=30.0)
+                response_data = json.loads(response_msg)
+                
+                print(f"   ← Response type: {response_data.get('type')}")
+                
+                # Look for chat response
+                if response_data.get('type') == 'chat.message':
+                    text_response = response_data.get('message', {}).get('text')
+                    if text_response:
+                        return text_response
+                
+                # Or check for tool results
+                if response_data.get('type') == 'tool.result':
+                    continue
+                
+                # Generic fallback
+                if 'text' in response_data:
+                    return response_data['text']
     
+    except asyncio.TimeoutError:
+        print(f"   ❌ OpenClaw timeout waiting for response")
+        return None
     except Exception as e:
         print(f"❌ OpenClaw error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 def speak_text(text):
