@@ -31,18 +31,21 @@ class OpenClawClient:
             # Wait for connect.challenge
             challenge = await self._wait_for_event("connect.challenge")
             
-            # Send connect request (minimal operator client)
+            # Send connect request (exactly as documented)
             connect_params = {
                 "minProtocol": 3,
                 "maxProtocol": 3,
                 "client": {
-                    "id": "cli",  # Use "cli" as it's likely whitelisted
+                    "id": "cli",
                     "version": "1.0.0",
                     "platform": "macos",
                     "mode": "operator"
                 },
                 "role": "operator",
                 "scopes": ["operator.read", "operator.write"],
+                "caps": [],
+                "commands": [],
+                "permissions": {},
                 "locale": "en-US",
                 "userAgent": "openclaw-voice-assistant/1.0.0"
             }
