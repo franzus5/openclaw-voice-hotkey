@@ -28,21 +28,54 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 
 ## Installation
 
+### Option 1: Local Setup (Recommended - like node_modules)
+
+Everything installs **locally in the project** - no global pollution:
+
 ```bash
 # Clone the repo
 git clone https://github.com/franzus5/openclaw-voice-hotkey.git
 cd openclaw-voice-hotkey
 
-# Run automated setup (installs all dependencies + models)
-chmod +x setup.sh
-./setup.sh
+# Run local setup
+chmod +x setup_local.sh
+./setup_local.sh
+
+# Run the assistant
+./run.sh
 ```
 
-The setup script will:
-- ✅ Install system dependencies (portaudio, ffmpeg)
-- ✅ Install OpenAI Whisper + download base model (~74MB)
-- ✅ Install Python dependencies
-- ✅ (Optional) Install Piper TTS for better voice quality
+This creates:
+```
+openclaw-voice-hotkey/
+  ├── venv/              ← Python packages (local virtualenv)
+  ├── models/
+  │   ├── whisper/       ← Whisper models (~74MB)
+  │   └── tts/           ← TTS voice models
+  └── bin/               ← Piper binary
+```
+
+**No global installation!** Everything is self-contained.
+
+### Option 2: Global Setup (Traditional)
+
+```bash
+# Clone the repo
+git clone https://github.com/franzus5/openclaw-voice-hotkey.git
+cd openclaw-voice-hotkey
+
+# Run global setup
+chmod +x setup.sh
+./setup.sh
+
+# Run the assistant
+python3 voice_hotkey.py
+```
+
+This installs:
+- Python packages globally
+- Whisper models in `~/.cache/whisper/`
+- Piper TTS locally in project
 
 ### Manual Installation
 
@@ -52,13 +85,14 @@ If you prefer manual setup:
 # Install system dependencies
 brew install portaudio ffmpeg
 
-# Install Python packages
-pip3 install -r requirements.txt
+# Create venv
+python3 -m venv venv
+source venv/bin/activate
 
-# Install Whisper
-pip3 install openai-whisper
+# Install packages
+pip install -r requirements.txt
 
-# Run the assistant
+# Run
 python3 voice_hotkey.py
 ```
 
@@ -110,6 +144,8 @@ Edit `config.json`:
 
 ## Architecture
 
+### Data Flow
+
 ```
 ┌─────────────┐
 │   Hotkey    │  Cmd+Shift+Space
@@ -133,8 +169,34 @@ Edit `config.json`:
        │
        ▼
 ┌─────────────┐
-│     TTS     │  say/sag response
+│     TTS     │  piper/say → speech
 └─────────────┘
+```
+
+### Project Structure
+
+```
+openclaw-voice-hotkey/
+├── voice_hotkey.py       # Main application
+├── config.json           # Configuration
+├── requirements.txt      # Python dependencies
+├── setup_local.sh        # Local setup (recommended)
+├── setup.sh              # Global setup
+├── run.sh                # Run with local env
+├── test_components.py    # Component tests
+│
+├── venv/                 # Python virtualenv (local)
+│   └── lib/              # Python packages
+│
+├── models/               # AI models (local)
+│   ├── whisper/          # Speech recognition
+│   │   └── base.pt       # ~74MB
+│   └── tts/              # Text-to-speech
+│       ├── uk_UA-lada-x_low.onnx      # Ukrainian
+│       └── en_US-lessac-medium.onnx   # English
+│
+└── bin/                  # Binaries (local)
+    └── piper             # TTS engine
 ```
 
 ## Roadmap
