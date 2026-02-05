@@ -105,14 +105,15 @@ def stop_recording():
     
     print(f"📝 Transcription: {text}")
     
-    # Send to OpenClaw
+    # Send to OpenClaw and get response
     print("🤖 Sending to OpenClaw...")
     response = send_to_openclaw(text)
     
     if response:
-        print(f"💬 {response}")
-        # Don't speak the acknowledgment, it's not the real AI response
-        # The real response will appear in Telegram chat
+        print(f"💬 Response: {response[:100]}...")
+        # Speak the response using TTS
+        print("🔊 Speaking response...")
+        speak_text(response)
 
 def save_audio():
     """Save audio frames to WAV file"""
@@ -223,7 +224,7 @@ def transcribe_audio(audio_file):
             os.remove(audio_file)
 
 def send_to_openclaw(text):
-    """Send message to OpenClaw via CLI (simpler than WebSocket)"""
+    """Send message to OpenClaw and get response"""
     try:
         print(f"   Sending via OpenClaw CLI...")
         
@@ -248,24 +249,53 @@ def send_to_openclaw(text):
         
         print(f"   Using: {openclaw_binary}")
         
-        # Inject as system event (like typing in terminal)
-        # This triggers the agent in the main session
+        # Run agent turn and get response
+        # --deliver sends reply to Telegram
+        # --json returns response text for TTS
+        cmd = [
+            openclaw_binary, "agent",
+            "--message", text,
+            "--channel", "telegram",
+            "--deliver",
+            "--json"
+        ]
+        
+        # Add user ID if configured (for session routing)
+        telegram_user_id = CONFIG.get("telegramUserId")
+        if telegram_user_id:
+            cmd.extend(["--to", str(telegram_user_id)])
+        
+        print(f"   Running agent turn...")
         result = subprocess.run(
-            [openclaw_binary, "system", "event", "--text", text, "--mode", "now"],
+            cmd,
             capture_output=True,
             text=True,
-            timeout=10
+            timeout=60  # Agent can take longer
         )
         
-        # For voice assistant, we don't wait for full response
-        # Just acknowledge that message was sent
-        print(f"   ✅ Message sent to OpenClaw")
+        if result.returncode != 0:
+            print(f"   ⚠️  Agent error: {result.stderr}")
+            return None
         
-        # Return acknowledgment
-        return "Повідомлення надіслано до OpenClaw. Відповідь з'явиться в основному чаті."
+        # Parse JSON response
+        try:
+            response_data = json.loads(result.stdout)
+            response_text = response_data.get("reply", "")
+            
+            if not response_text:
+                print(f"   ⚠️  Empty response from agent")
+                return None
+            
+            print(f"   ✅ Got response ({len(response_text)} chars)")
+            return response_text
+            
+        except json.JSONDecodeError as e:
+            print(f"   ⚠️  Could not parse JSON response: {e}")
+            print(f"   Raw output: {result.stdout[:200]}")
+            return None
         
     except subprocess.TimeoutExpired:
-        print(f"   ❌ OpenClaw CLI timeout")
+        print(f"   ❌ Agent timeout (60s)")
         return None
     except Exception as e:
         print(f"   ❌ Error: {e}")

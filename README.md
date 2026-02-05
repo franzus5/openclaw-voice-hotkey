@@ -15,9 +15,9 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 1. Press and **hold** `Cmd+Shift+Space` → recording starts
 2. Speak your question while holding
 3. Release hotkey → recording stops, Whisper transcribes locally
-4. Text sent to OpenClaw via CLI (`openclaw inject`)
-5. OpenClaw response appears in your main chat (Telegram/etc)
-6. *(Future: speak response aloud via TTS)*
+4. Text sent to OpenClaw via CLI (`openclaw agent --deliver`)
+5. OpenClaw processes request and replies to Telegram
+6. Response is also spoken aloud via TTS (macOS `say` or Piper)
 
 ## Requirements
 
@@ -105,9 +105,10 @@ Edit `config.json`:
 {
   "hotkey": "cmd+shift+space",
   "whisperModel": "base",
-  "ttsEngine": "piper",
+  "ttsEngine": "say",
   "language": "uk",
   "inputDevice": null,
+  "telegramUserId": "YOUR_TELEGRAM_USER_ID",
   "openclawBinary": "/Users/YOUR_USERNAME/.nvm/versions/node/v24.13.0/bin/openclaw",
   "piperBinary": "./bin/piper",
   "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
@@ -136,6 +137,9 @@ Edit `config.json`:
   - `null`: use system default
   - `2`: use device #2 (e.g., headset microphone)
   - Check device list when starting the assistant
+- `telegramUserId`: Your Telegram user ID (for session routing)
+  - Find it by sending `/start` to `@userinfobot` on Telegram
+  - Optional but recommended for proper session management
 - `openclawBinary`: Full path to OpenClaw CLI (auto-detected if not set)
   - Example: `~/.nvm/versions/node/v24.13.0/bin/openclaw`
   - If OpenClaw is not in PATH, set this explicitly

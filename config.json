@@ -4,6 +4,7 @@
   "ttsEngine": "say",
   "language": "uk",
   "inputDevice": null,
+  "telegramUserId": "452675801",
   "openclawBinary": "/Users/vasiliyhrebenuyk/.nvm/versions/node/v24.13.0/bin/openclaw",
   "piperBinary": "./bin/piper",
   "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
