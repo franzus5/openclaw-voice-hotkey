@@ -226,55 +226,74 @@ def transcribe_audio(audio_file):
             os.remove(audio_file)
 
 def send_to_openclaw(text):
-    """Send message to OpenClaw via WebSocket and get response"""
+    """Send message to OpenClaw via local ACP proxy and get response"""
     try:
-        print(f"   Sending via OpenClaw WebSocket...")
+        print(f"   Sending via ACP proxy (Node)...")
         
-        # Get gateway config
-        gateway_url = CONFIG.get("gatewayUrl", "ws://127.0.0.1:18789")
-        gateway_token = CONFIG.get("gatewayToken")  # Optional
         telegram_user_id = CONFIG.get("telegramUserId")
         
-        print(f"   Connecting to {gateway_url}...")
+        # Prepare JSON line for proxy
+        payload = {
+            "type": "ask",
+            "text": text,
+            "to": telegram_user_id,
+            "channel": "telegram"
+        }
         
-        # Run async WebSocket communication
-        response_text = asyncio.run(_send_via_websocket(
-            gateway_url, 
-            gateway_token, 
-            text, 
-            telegram_user_id
-        ))
+        # Run Node proxy synchronously
+        # node acp_proxy.js < payload
+        proc = subprocess.Popen(
+            ["node", "acp_proxy.js"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
         
-        if response_text:
-            print(f"   ✅ Got response ({len(response_text)} chars)")
-            return response_text
-        else:
-            print(f"   ⚠️  No response received")
+        stdout, stderr = proc.communicate(json.dumps(payload) + "\n", timeout=60)
+        
+        if stderr:
+            # Proxy logs go to stderr; print for debugging but don't fail immediately
+            print(f"   [proxy stderr] {stderr.strip()}")
+        
+        if proc.returncode != 0:
+            print(f"   ❌ ACP proxy exited with code {proc.returncode}")
             return None
         
+        # Parse first non-empty line from stdout as JSON
+        for line in stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                resp = json.loads(line)
+            except json.JSONDecodeError:
+                print(f"   ⚠️  Could not parse proxy output line: {line}")
+                continue
+            
+            if not resp.get("ok"):
+                print(f"   ⚠️  Proxy error: {resp.get('error')}")
+                return None
+            
+            reply = resp.get("reply", "")
+            if reply:
+                print(f"   ✅ Got response from ACP ({len(reply)} chars)")
+                return reply
+            else:
+                print(f"   ⚠️  Empty reply from ACP")
+                return None
+        
+        print(f"   ⚠️  No usable output from ACP proxy")
+        return None
+        
+    except subprocess.TimeoutExpired:
+        print("   ❌ ACP proxy timeout")
+        return None
     except Exception as e:
         print(f"   ❌ Error: {e}")
         import traceback
         traceback.print_exc()
         return None
-
-
-async def _send_via_websocket(gateway_url: str, token: str, message: str, to: str = None):
-    """Async helper for WebSocket communication"""
-    client = OpenClawClient(gateway_url, token)
-    
-    try:
-        # Connect to gateway
-        if not await client.connect():
-            return None
-        
-        # Send message and get response
-        response = await client.send_message(message, to=to, channel="telegram")
-        
-        return response
-        
-    finally:
-        await client.disconnect()
 
 def speak_text(text):
     """Speak text using TTS"""
