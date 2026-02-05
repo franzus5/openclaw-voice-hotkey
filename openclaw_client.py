@@ -38,7 +38,8 @@ class OpenClawClient:
                 "client": {
                     "id": "cli",  # Use "cli" as it's likely whitelisted
                     "version": "1.0.0",
-                    "platform": "macos"
+                    "platform": "macos",
+                    "mode": "operator"
                 },
                 "role": "operator",
                 "scopes": ["operator.read", "operator.write"],
