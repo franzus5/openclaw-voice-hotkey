@@ -109,6 +109,8 @@ def save_audio():
     """Save audio frames to WAV file"""
     global audio_frames
     
+    print(f"   Saving {len(audio_frames)} audio chunks...")
+    
     temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
     
     wf = wave.open(temp_file.name, 'wb')
@@ -118,18 +120,41 @@ def save_audio():
     wf.writeframes(b''.join(audio_frames))
     wf.close()
     
+    file_size = os.path.getsize(temp_file.name)
+    print(f"   Saved to: {temp_file.name} ({file_size} bytes)")
+    
     return temp_file.name
 
 def transcribe_audio(audio_file):
     """Transcribe audio using Whisper CLI"""
     try:
+        # Check audio file
+        file_size = os.path.getsize(audio_file)
+        print(f"   Audio file: {audio_file}")
+        print(f"   File size: {file_size} bytes")
+        
+        if file_size < 1000:
+            print("   ⚠️  Audio file too small, probably silent")
+            return None
+        
         model = CONFIG.get("whisperModel", "base")
+        language = CONFIG.get("language", "uk")
+        
+        # Map language codes
+        whisper_lang = "uk" if language == "uk" else "en"
+        
+        print(f"   Using Whisper model: {model}, language: {whisper_lang}")
+        
         result = subprocess.run(
-            ["whisper", audio_file, "--model", model, "--output_format", "txt", "--language", "en"],
+            ["whisper", audio_file, "--model", model, "--output_format", "txt", "--language", whisper_lang],
             capture_output=True,
             text=True,
             timeout=60
         )
+        
+        # Debug output
+        if result.returncode != 0:
+            print(f"   ⚠️  Whisper stderr: {result.stderr}")
         
         # Whisper writes output to <audio_file>.txt
         txt_file = audio_file.replace(".wav", ".txt")
@@ -137,11 +162,19 @@ def transcribe_audio(audio_file):
             with open(txt_file) as f:
                 text = f.read().strip()
             os.remove(txt_file)
+            
+            if text:
+                print(f"   ✅ Transcribed: {len(text)} characters")
+            
             return text
+        else:
+            print(f"   ⚠️  Output file not found: {txt_file}")
         
         return None
     except Exception as e:
         print(f"❌ Transcription error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
     finally:
         # Clean up audio file
@@ -264,12 +297,33 @@ def on_release(key):
     except AttributeError:
         pass
 
+def list_audio_devices():
+    """List available audio input devices"""
+    print("🎤 Audio input devices:")
+    p = pyaudio.PyAudio()
+    for i in range(p.get_device_count()):
+        info = p.get_device_info_by_index(i)
+        if info['maxInputChannels'] > 0:
+            print(f"   [{i}] {info['name']}")
+    default_input = p.get_default_input_device_info()
+    print(f"   Default: {default_input['name']}")
+    p.terminate()
+    print()
+
 def main():
     """Main entry point"""
     print("🎙️  OpenClaw Voice Hotkey Assistant")
     print(f"📍 Gateway: {CONFIG['openclawGateway']}")
     print(f"🔑 Hotkey: {CONFIG['hotkey']} (Push-to-talk)")
     print()
+    
+    # List audio devices
+    try:
+        list_audio_devices()
+    except Exception as e:
+        print(f"⚠️  Could not list audio devices: {e}")
+        print()
+    
     print("💡 Usage:")
     print("   1. Press and HOLD Cmd+Shift+Space")
     print("   2. Speak while holding")
