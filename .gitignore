@@ -11,6 +11,7 @@ build/
 
 # Local environment (like node_modules)
 venv/
+node_modules/
 bin/
 models/
 *.onnx
