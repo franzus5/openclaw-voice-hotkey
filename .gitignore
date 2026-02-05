@@ -8,3 +8,12 @@ dist/
 build/
 venv/
 .env
+
+# Downloaded models and binaries
+bin/
+models/
+*.onnx
+*.tar.gz
+
+# Whisper cache
+~/.cache/whisper/

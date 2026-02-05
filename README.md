@@ -23,8 +23,7 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 - macOS 12.0+
 - Python 3.9+
 - OpenClaw running locally
-- Whisper CLI (`brew install whisper`)
-- (Optional) `sag` for better TTS quality
+- Homebrew (for dependencies)
 
 ## Installation
 
@@ -33,8 +32,30 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 git clone https://github.com/franzus5/openclaw-voice-hotkey.git
 cd openclaw-voice-hotkey
 
-# Install Python dependencies
+# Run automated setup (installs all dependencies + models)
+chmod +x setup.sh
+./setup.sh
+```
+
+The setup script will:
+- ✅ Install system dependencies (portaudio, ffmpeg)
+- ✅ Install OpenAI Whisper + download base model (~74MB)
+- ✅ Install Python dependencies
+- ✅ (Optional) Install Piper TTS for better voice quality
+
+### Manual Installation
+
+If you prefer manual setup:
+
+```bash
+# Install system dependencies
+brew install portaudio ffmpeg
+
+# Install Python packages
 pip3 install -r requirements.txt
+
+# Install Whisper
+pip3 install openai-whisper
 
 # Run the assistant
 python3 voice_hotkey.py
@@ -49,9 +70,26 @@ Edit `config.json`:
   "hotkey": "cmd+shift+space",
   "openclawGateway": "ws://127.0.0.1:18789",
   "whisperModel": "base",
-  "ttsEngine": "say"
+  "ttsEngine": "say",
+  "piperBinary": "./bin/piper",
+  "piperModel": "./models/tts/en_US-lessac-medium.onnx"
 }
 ```
+
+**Options:**
+
+- `hotkey`: Keyboard shortcut (default: `cmd+shift+space`)
+- `openclawGateway`: OpenClaw WebSocket URL
+- `whisperModel`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`)
+  - `tiny`: fastest, lowest quality (~39MB)
+  - `base`: good balance (~74MB) - **recommended**
+  - `small`: better quality (~244MB)
+  - `medium`: high quality (~769MB)
+  - `large`: best quality (~1.5GB)
+- `ttsEngine`: Text-to-speech engine
+  - `say`: macOS built-in (fast, decent quality)
+  - `piper`: Local TTS (better quality, more natural)
+  - `sag`: ElevenLabs via skill (requires API key, cloud-based)
 
 ## Usage
 

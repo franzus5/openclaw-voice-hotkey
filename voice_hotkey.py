@@ -170,6 +170,27 @@ def speak_text(text):
             subprocess.run(["say", text])
         elif tts_engine == "sag":
             subprocess.run(["sag", text])
+        elif tts_engine == "piper":
+            piper_binary = CONFIG.get("piperBinary", "./bin/piper")
+            piper_model = CONFIG.get("piperModel", "./models/tts/en_US-lessac-medium.onnx")
+            
+            # Piper: echo "text" | piper --model model.onnx --output_file output.wav && afplay output.wav
+            temp_audio = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+            
+            # Generate audio with piper
+            proc = subprocess.Popen(
+                [piper_binary, "--model", piper_model, "--output_file", temp_audio.name],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            proc.communicate(input=text.encode('utf-8'))
+            
+            # Play audio
+            subprocess.run(["afplay", temp_audio.name])
+            
+            # Clean up
+            os.remove(temp_audio.name)
         else:
             print(f"⚠️  Unknown TTS engine: {tts_engine}")
     except Exception as e:

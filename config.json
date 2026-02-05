@@ -2,5 +2,7 @@
   "hotkey": "cmd+shift+space",
   "openclawGateway": "ws://127.0.0.1:18789",
   "whisperModel": "base",
-  "ttsEngine": "say"
+  "ttsEngine": "say",
+  "piperBinary": "./bin/piper",
+  "piperModel": "./models/tts/en_US-lessac-medium.onnx"
 }
