@@ -12,12 +12,12 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 
 ## How it works
 
-1. Press `Cmd+Shift+Space` → recording starts
-2. Speak your question
+1. Press and **hold** `Cmd+Shift+Space` → recording starts
+2. Speak your question while holding
 3. Release hotkey → recording stops, Whisper transcribes locally
-4. Text sent to OpenClaw gateway (`ws://127.0.0.1:18789`)
-5. OpenClaw responds
-6. Response is spoken aloud via TTS (`say` or `sag`)
+4. Text sent to OpenClaw via CLI (`openclaw inject`)
+5. OpenClaw response appears in your main chat (Telegram/etc)
+6. *(Future: speak response aloud via TTS)*
 
 ## Requirements
 
@@ -104,10 +104,10 @@ Edit `config.json`:
 ```json
 {
   "hotkey": "cmd+shift+space",
-  "openclawGateway": "ws://127.0.0.1:18789",
   "whisperModel": "base",
   "ttsEngine": "piper",
   "language": "uk",
+  "inputDevice": null,
   "piperBinary": "./bin/piper",
   "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
   "piperModelEN": "./models/tts/en_US-lessac-medium.onnx",
@@ -118,7 +118,6 @@ Edit `config.json`:
 **Options:**
 
 - `hotkey`: Keyboard shortcut (default: `cmd+shift+space`)
-- `openclawGateway`: OpenClaw WebSocket URL
 - `whisperModel`: Whisper model size (`tiny`, `base`, `small`, `medium`, `large`)
   - `tiny`: fastest, lowest quality (~39MB)
   - `base`: good balance (~74MB) - **recommended**
@@ -230,11 +229,11 @@ Quick fix:
 3. Recording duration must be > 0.5 seconds
 4. Try testing microphone: `rec test.wav trim 0 3 && play test.wav`
 
-### OpenClaw connection failed
+### Message not appearing in OpenClaw
 
 1. Make sure OpenClaw is running: `openclaw status`
-2. Check gateway URL in config.json matches your setup
-3. Default: `ws://127.0.0.1:18789`
+2. Check you're in the main session (Telegram/etc)
+3. Message is sent via `openclaw inject` command
 
 ## Roadmap
 

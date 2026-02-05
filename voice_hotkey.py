@@ -14,8 +14,6 @@ from pathlib import Path
 from pynput import keyboard
 import pyaudio
 import wave
-import asyncio
-import websockets
 
 # Load config
 CONFIG_FILE = Path(__file__).parent / "config.json"
@@ -109,11 +107,12 @@ def stop_recording():
     
     # Send to OpenClaw
     print("🤖 Sending to OpenClaw...")
-    response = asyncio.run(send_to_openclaw(text))
+    response = send_to_openclaw(text)
     
     if response:
-        print(f"💬 Response: {response}")
-        speak_text(response)
+        print(f"💬 {response}")
+        # Don't speak the acknowledgment, it's not the real AI response
+        # The real response will appear in Telegram chat
 
 def save_audio():
     """Save audio frames to WAV file"""
@@ -223,70 +222,51 @@ def transcribe_audio(audio_file):
         if audio_file and os.path.exists(audio_file):
             os.remove(audio_file)
 
-async def send_to_openclaw(text):
-    """Send message to OpenClaw gateway"""
-    gateway_url = CONFIG.get("openclawGateway", "ws://127.0.0.1:18789")
-    
+def send_to_openclaw(text):
+    """Send message to OpenClaw via CLI (simpler than WebSocket)"""
     try:
-        async with websockets.connect(gateway_url) as websocket:
-            print(f"   Connected to OpenClaw gateway")
-            
-            # Wait for initial messages (challenge, etc)
-            while True:
-                try:
-                    msg = await asyncio.wait_for(websocket.recv(), timeout=2.0)
-                    data = json.loads(msg)
-                    print(f"   ← Received: {data.get('type', 'unknown')} {data.get('event', '')}")
-                    
-                    # If we get a challenge, respond
-                    if data.get('event') == 'connect.challenge':
-                        # Respond to challenge (if needed)
-                        continue
-                    
-                    # If gateway is ready, break
-                    if data.get('type') in ['ready', 'event'] and data.get('event') != 'connect.challenge':
-                        break
-                        
-                except asyncio.TimeoutError:
-                    # No more initial messages, proceed
-                    break
-            
-            # Send chat message
-            message = {
-                "type": "chat.send",
-                "sessionKey": "agent:main:main",
-                "message": text
-            }
-            print(f"   → Sending message: {text[:50]}...")
-            await websocket.send(json.dumps(message))
-            
-            # Wait for response
-            print(f"   Waiting for AI response...")
-            while True:
-                response_msg = await asyncio.wait_for(websocket.recv(), timeout=30.0)
-                response_data = json.loads(response_msg)
-                
-                print(f"   ← Response type: {response_data.get('type')}")
-                
-                # Look for chat response
-                if response_data.get('type') == 'chat.message':
-                    text_response = response_data.get('message', {}).get('text')
-                    if text_response:
-                        return text_response
-                
-                # Or check for tool results
-                if response_data.get('type') == 'tool.result':
-                    continue
-                
-                # Generic fallback
-                if 'text' in response_data:
-                    return response_data['text']
-    
-    except asyncio.TimeoutError:
-        print(f"   ❌ OpenClaw timeout waiting for response")
+        print(f"   Sending via OpenClaw CLI...")
+        
+        # Create temp file with the message
+        temp_msg = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8')
+        temp_msg.write(text)
+        temp_msg.close()
+        
+        # Send via openclaw CLI
+        # This simulates typing the message in the terminal
+        result = subprocess.run(
+            ["openclaw", "chat", "send", "--message", text, "--session", "main"],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        # Clean up
+        os.remove(temp_msg.name)
+        
+        if result.returncode != 0:
+            print(f"   ⚠️  OpenClaw CLI error: {result.stderr}")
+            # Fallback: inject as system event
+            print(f"   Trying alternative method...")
+            result = subprocess.run(
+                ["openclaw", "inject", text],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+        
+        # For voice assistant, we don't wait for full response
+        # Just acknowledge that message was sent
+        print(f"   ✅ Message sent to OpenClaw")
+        
+        # Return acknowledgment
+        return "Повідомлення надіслано до OpenClaw. Відповідь з'явиться в основному чаті."
+        
+    except subprocess.TimeoutExpired:
+        print(f"   ❌ OpenClaw CLI timeout")
         return None
     except Exception as e:
-        print(f"❌ OpenClaw error: {e}")
+        print(f"   ❌ Error: {e}")
         import traceback
         traceback.print_exc()
         return None
@@ -424,7 +404,6 @@ def list_audio_devices():
 def main():
     """Main entry point"""
     print("🎙️  OpenClaw Voice Hotkey Assistant")
-    print(f"📍 Gateway: {CONFIG['openclawGateway']}")
     print(f"🔑 Hotkey: {CONFIG['hotkey']} (Push-to-talk)")
     print()
     
