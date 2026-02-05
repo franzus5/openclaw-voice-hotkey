@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+"""
+OpenClaw Voice Hotkey Assistant
+Press Cmd+Shift+Space → speak → get AI response
+"""
+
+import json
+import subprocess
+import tempfile
+import os
+import sys
+from pathlib import Path
+from pynput import keyboard
+import pyaudio
+import wave
+import asyncio
+import websockets
+
+# Load config
+CONFIG_FILE = Path(__file__).parent / "config.json"
+with open(CONFIG_FILE) as f:
+    CONFIG = json.load(f)
+
+# State
+is_recording = False
+audio_frames = []
+audio_stream = None
+p = None
+
+def start_recording():
+    """Start audio recording"""
+    global is_recording, audio_frames, audio_stream, p
+    
+    if is_recording:
+        return
+    
+    print("🎤 Recording started...")
+    is_recording = True
+    audio_frames = []
+    
+    # Initialize PyAudio
+    p = pyaudio.PyAudio()
+    audio_stream = p.open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=16000,
+        input=True,
+        frames_per_buffer=1024,
+        stream_callback=audio_callback
+    )
+    audio_stream.start_stream()
+
+def audio_callback(in_data, frame_count, time_info, status):
+    """Callback for audio stream"""
+    global audio_frames
+    audio_frames.append(in_data)
+    return (in_data, pyaudio.paContinue)
+
+def stop_recording():
+    """Stop recording and process"""
+    global is_recording, audio_stream, p
+    
+    if not is_recording:
+        return
+    
+    print("⏸️  Recording stopped")
+    is_recording = False
+    
+    # Stop stream
+    if audio_stream:
+        audio_stream.stop_stream()
+        audio_stream.close()
+    if p:
+        p.terminate()
+    
+    # Save audio to temp file
+    audio_file = save_audio()
+    
+    # Transcribe with Whisper
+    print("🔄 Transcribing...")
+    text = transcribe_audio(audio_file)
+    
+    if not text or text.strip() == "":
+        print("⚠️  No speech detected")
+        return
+    
+    print(f"📝 Transcription: {text}")
+    
+    # Send to OpenClaw
+    print("🤖 Sending to OpenClaw...")
+    response = asyncio.run(send_to_openclaw(text))
+    
+    if response:
+        print(f"💬 Response: {response}")
+        speak_text(response)
+
+def save_audio():
+    """Save audio frames to WAV file"""
+    global audio_frames
+    
+    temp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    
+    wf = wave.open(temp_file.name, 'wb')
+    wf.setnchannels(1)
+    wf.setsampwidth(pyaudio.PyAudio().get_sample_size(pyaudio.paInt16))
+    wf.setframerate(16000)
+    wf.writeframes(b''.join(audio_frames))
+    wf.close()
+    
+    return temp_file.name
+
+def transcribe_audio(audio_file):
+    """Transcribe audio using Whisper CLI"""
+    try:
+        model = CONFIG.get("whisperModel", "base")
+        result = subprocess.run(
+            ["whisper", audio_file, "--model", model, "--output_format", "txt", "--language", "en"],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        # Whisper writes output to <audio_file>.txt
+        txt_file = audio_file.replace(".wav", ".txt")
+        if os.path.exists(txt_file):
+            with open(txt_file) as f:
+                text = f.read().strip()
+            os.remove(txt_file)
+            return text
+        
+        return None
+    except Exception as e:
+        print(f"❌ Transcription error: {e}")
+        return None
+    finally:
+        # Clean up audio file
+        if os.path.exists(audio_file):
+            os.remove(audio_file)
+
+async def send_to_openclaw(text):
+    """Send message to OpenClaw gateway"""
+    gateway_url = CONFIG.get("openclawGateway", "ws://127.0.0.1:18789")
+    
+    try:
+        async with websockets.connect(gateway_url) as websocket:
+            # Send message (format depends on OpenClaw protocol)
+            message = {
+                "type": "chat.send",
+                "message": text
+            }
+            await websocket.send(json.dumps(message))
+            
+            # Receive response
+            response = await websocket.recv()
+            data = json.loads(response)
+            
+            # Extract text from response (adjust based on OpenClaw protocol)
+            return data.get("text", str(data))
+    
+    except Exception as e:
+        print(f"❌ OpenClaw error: {e}")
+        return None
+
+def speak_text(text):
+    """Speak text using TTS"""
+    tts_engine = CONFIG.get("ttsEngine", "say")
+    
+    try:
+        if tts_engine == "say":
+            subprocess.run(["say", text])
+        elif tts_engine == "sag":
+            subprocess.run(["sag", text])
+        else:
+            print(f"⚠️  Unknown TTS engine: {tts_engine}")
+    except Exception as e:
+        print(f"❌ TTS error: {e}")
+
+def on_press(key):
+    """Handle key press"""
+    try:
+        # Check for Cmd+Shift+Space (simplified detection)
+        if key == keyboard.Key.space:
+            start_recording()
+    except AttributeError:
+        pass
+
+def on_release(key):
+    """Handle key release"""
+    try:
+        if key == keyboard.Key.space and is_recording:
+            stop_recording()
+        
+        # Exit on Escape
+        if key == keyboard.Key.esc:
+            return False
+    except AttributeError:
+        pass
+
+def main():
+    """Main entry point"""
+    print("🎙️  OpenClaw Voice Hotkey Assistant")
+    print(f"📍 Gateway: {CONFIG['openclawGateway']}")
+    print(f"🔑 Hotkey: {CONFIG['hotkey']}")
+    print("Press Cmd+Shift+Space to record, Escape to exit")
+    print()
+    
+    # Start listening for hotkeys
+    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        listener.join()
+
+if __name__ == "__main__":
+    main()
