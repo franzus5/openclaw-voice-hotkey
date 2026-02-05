@@ -25,6 +25,7 @@ Voice assistant for OpenClaw - press a hotkey, speak, get AI response.
 - Python 3.9+
 - OpenClaw running locally
 - Homebrew (for dependencies)
+- **Accessibility permissions** (for hotkey detection) - see [PERMISSIONS.md](PERMISSIONS.md)
 
 ## Installation
 
@@ -199,16 +200,50 @@ openclaw-voice-hotkey/
     └── piper             # TTS engine
 ```
 
+## Troubleshooting
+
+### "This process is not trusted!" error
+
+You need to grant **Accessibility** permissions to Terminal.
+
+👉 **See [PERMISSIONS.md](PERMISSIONS.md) for detailed instructions**
+
+Quick fix:
+1. System Settings → Privacy & Security → Accessibility
+2. Add Terminal.app
+3. Restart the assistant
+
+### Hotkey not working
+
+1. Check Accessibility permissions (see above)
+2. Make sure you press **Cmd+Shift+Space** (all three keys)
+3. Try restarting Terminal completely
+
+### "No speech detected"
+
+1. Check microphone permissions (System Settings → Privacy & Security → Microphone)
+2. Speak clearly and hold hotkey while speaking
+3. Recording duration must be > 0.5 seconds
+4. Try testing microphone: `rec test.wav trim 0 3 && play test.wav`
+
+### OpenClaw connection failed
+
+1. Make sure OpenClaw is running: `openclaw status`
+2. Check gateway URL in config.json matches your setup
+3. Default: `ws://127.0.0.1:18789`
+
 ## Roadmap
 
 - [x] Create repo structure
-- [ ] Implement hotkey listener (pynput)
-- [ ] Implement audio recording (pyaudio)
-- [ ] Whisper CLI integration
-- [ ] OpenClaw WebSocket client
-- [ ] TTS playback
-- [ ] Config file support
+- [x] Implement hotkey listener (pynput)
+- [x] Implement audio recording (pyaudio)
+- [x] Whisper CLI integration
+- [x] Local TTS (Piper) with Ukrainian support
+- [x] Self-contained setup (like node_modules)
+- [ ] OpenClaw WebSocket client (in progress)
+- [ ] Proper Cmd+Shift+Space detection (done, needs testing)
 - [ ] Menu bar app (optional)
+- [ ] Standalone .app bundle (no Terminal required)
 
 ## License
 

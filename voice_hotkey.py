@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import os
 import sys
+import time
 from pathlib import Path
 from pynput import keyboard
 import pyaudio
@@ -26,10 +27,11 @@ is_recording = False
 audio_frames = []
 audio_stream = None
 p = None
+recording_start_time = None
 
 def start_recording():
     """Start audio recording"""
-    global is_recording, audio_frames, audio_stream, p
+    global is_recording, audio_frames, audio_stream, p, recording_start_time
     
     if is_recording:
         return
@@ -37,6 +39,7 @@ def start_recording():
     print("🎤 Recording started...")
     is_recording = True
     audio_frames = []
+    recording_start_time = time.time()
     
     # Initialize PyAudio
     p = pyaudio.PyAudio()
@@ -58,12 +61,15 @@ def audio_callback(in_data, frame_count, time_info, status):
 
 def stop_recording():
     """Stop recording and process"""
-    global is_recording, audio_stream, p
+    global is_recording, audio_stream, p, recording_start_time
     
     if not is_recording:
         return
     
-    print("⏸️  Recording stopped")
+    # Check minimum recording duration
+    duration = time.time() - recording_start_time if recording_start_time else 0
+    
+    print(f"⏸️  Recording stopped (duration: {duration:.1f}s)")
     is_recording = False
     
     # Stop stream
@@ -72,6 +78,11 @@ def stop_recording():
         audio_stream.close()
     if p:
         p.terminate()
+    
+    # Skip if recording was too short (< 0.5 seconds)
+    if duration < 0.5:
+        print("⚠️  Recording too short, skipping...")
+        return
     
     # Save audio to temp file
     audio_file = save_audio()
@@ -205,23 +216,42 @@ def speak_text(text):
     except Exception as e:
         print(f"❌ TTS error: {e}")
 
+# Track modifier keys state
+current_modifiers = set()
+
 def on_press(key):
     """Handle key press"""
     try:
-        # Check for Cmd+Shift+Space (simplified detection)
+        # Track modifier keys
+        if key == keyboard.Key.cmd or key == keyboard.Key.cmd_r:
+            current_modifiers.add('cmd')
+        elif key == keyboard.Key.shift or key == keyboard.Key.shift_r:
+            current_modifiers.add('shift')
+        
+        # Check for Cmd+Shift+Space combination
         if key == keyboard.Key.space:
-            start_recording()
+            if 'cmd' in current_modifiers and 'shift' in current_modifiers:
+                print("🎤 Hotkey detected: Cmd+Shift+Space")
+                start_recording()
     except AttributeError:
         pass
 
 def on_release(key):
     """Handle key release"""
     try:
+        # Remove released modifiers
+        if key == keyboard.Key.cmd or key == keyboard.Key.cmd_r:
+            current_modifiers.discard('cmd')
+        elif key == keyboard.Key.shift or key == keyboard.Key.shift_r:
+            current_modifiers.discard('shift')
+        
+        # Stop recording when Space is released (if we were recording)
         if key == keyboard.Key.space and is_recording:
             stop_recording()
         
         # Exit on Escape
         if key == keyboard.Key.esc:
+            print("\n👋 Exiting...")
             return False
     except AttributeError:
         pass
