@@ -4,6 +4,7 @@
   "whisperModel": "base",
   "ttsEngine": "say",
   "language": "uk",
+  "inputDevice": null,
   "piperBinary": "./bin/piper",
   "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
   "piperModelEN": "./models/tts/en_US-lessac-medium.onnx",

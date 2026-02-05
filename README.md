@@ -132,6 +132,10 @@ Edit `config.json`:
 - `language`: Language for Piper TTS (`uk` or `en`)
   - `uk`: Ukrainian voice (Lada) - **default**
   - `en`: English voice (Lessac)
+- `inputDevice`: Audio input device index (see device list on startup)
+  - `null`: use system default
+  - `2`: use device #2 (e.g., headset microphone)
+  - Check device list when starting the assistant
 - `piperModelUK`: Path to Ukrainian voice model
 - `piperModelEN`: Path to English voice model
 

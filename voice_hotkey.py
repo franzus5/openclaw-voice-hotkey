@@ -43,11 +43,21 @@ def start_recording():
     
     # Initialize PyAudio
     p = pyaudio.PyAudio()
+    
+    # Get input device
+    configured_device = CONFIG.get("inputDevice")
+    input_device_index = configured_device if configured_device is not None else None
+    
+    if input_device_index is not None:
+        device_info = p.get_device_info_by_index(input_device_index)
+        print(f"   Using device [{input_device_index}]: {device_info['name']}")
+    
     audio_stream = p.open(
         format=pyaudio.paInt16,
         channels=1,
         rate=16000,
         input=True,
+        input_device_index=input_device_index,
         frames_per_buffer=1024,
         stream_callback=audio_callback
     )
@@ -377,12 +387,37 @@ def list_audio_devices():
     """List available audio input devices"""
     print("🎤 Audio input devices:")
     p = pyaudio.PyAudio()
+    
+    devices = []
     for i in range(p.get_device_count()):
         info = p.get_device_info_by_index(i)
         if info['maxInputChannels'] > 0:
-            print(f"   [{i}] {info['name']}")
+            devices.append((i, info))
+            marker = ""
+            
+            # Check if this is the configured device
+            configured_device = CONFIG.get("inputDevice")
+            if configured_device is not None and i == configured_device:
+                marker = " ← CONFIGURED"
+            
+            print(f"   [{i}] {info['name']}{marker}")
+    
     default_input = p.get_default_input_device_info()
-    print(f"   Default: {default_input['name']}")
+    default_index = default_input['index']
+    print(f"   System Default: [{default_index}] {default_input['name']}")
+    
+    # Show which one will be used
+    configured_device = CONFIG.get("inputDevice")
+    if configured_device is not None:
+        if configured_device < len(devices):
+            used_device = devices[configured_device][1]
+            print(f"   ✅ Will use: [{configured_device}] {used_device['name']}")
+        else:
+            print(f"   ⚠️  Configured device [{configured_device}] not found, using default")
+            print(f"   ✅ Will use: [{default_index}] {default_input['name']}")
+    else:
+        print(f"   ✅ Will use default: [{default_index}] {default_input['name']}")
+    
     p.terminate()
     print()
 
