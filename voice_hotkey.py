@@ -249,25 +249,25 @@ def send_to_openclaw(text):
         
         print(f"   Using: {openclaw_binary}")
         
-        # Run agent turn and get response
-        # --deliver sends reply to Telegram
-        # --json returns response text for TTS
-        cmd = [
+        # Two-step approach:
+        # 1. Get response without delivery (for TTS)
+        # 2. Deliver to Telegram separately
+        
+        # Step 1: Get agent response
+        cmd_get = [
             openclaw_binary, "agent",
             "--message", text,
-            "--channel", "telegram",
-            "--deliver",
             "--json"
         ]
         
         # Add user ID if configured (for session routing)
         telegram_user_id = CONFIG.get("telegramUserId")
         if telegram_user_id:
-            cmd.extend(["--to", str(telegram_user_id)])
+            cmd_get.extend(["--to", str(telegram_user_id)])
         
-        print(f"   Running agent turn...")
+        print(f"   Getting agent response...")
         result = subprocess.run(
-            cmd,
+            cmd_get,
             capture_output=True,
             text=True,
             timeout=60  # Agent can take longer
@@ -278,6 +278,7 @@ def send_to_openclaw(text):
             return None
         
         # Parse JSON response
+        response_text = None
         try:
             response_data = json.loads(result.stdout)
             response_text = response_data.get("reply", "")
@@ -287,12 +288,35 @@ def send_to_openclaw(text):
                 return None
             
             print(f"   ✅ Got response ({len(response_text)} chars)")
-            return response_text
             
         except json.JSONDecodeError as e:
             print(f"   ⚠️  Could not parse JSON response: {e}")
             print(f"   Raw output: {result.stdout[:200]}")
             return None
+        
+        # Step 2: Deliver to Telegram
+        if telegram_user_id and response_text:
+            print(f"   Delivering to Telegram...")
+            cmd_deliver = [
+                openclaw_binary, "message", "send",
+                "--channel", "telegram",
+                "--target", str(telegram_user_id),
+                "--message", response_text
+            ]
+            
+            deliver_result = subprocess.run(
+                cmd_deliver,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if deliver_result.returncode == 0:
+                print(f"   ✅ Delivered to Telegram")
+            else:
+                print(f"   ⚠️  Delivery warning: {deliver_result.stderr[:100]}")
+        
+        return response_text
         
     except subprocess.TimeoutExpired:
         print(f"   ❌ Agent timeout (60s)")
