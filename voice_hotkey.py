@@ -227,6 +227,27 @@ def send_to_openclaw(text):
     try:
         print(f"   Sending via OpenClaw CLI...")
         
+        # Path to openclaw binary (use configured or find it)
+        openclaw_binary = CONFIG.get("openclawBinary")
+        if not openclaw_binary:
+            # Try to find it in common locations
+            possible_paths = [
+                os.path.expanduser("~/.nvm/versions/node/v24.13.0/bin/openclaw"),
+                "/usr/local/bin/openclaw",
+                "/opt/homebrew/bin/openclaw"
+            ]
+            for path in possible_paths:
+                if os.path.exists(path):
+                    openclaw_binary = path
+                    break
+        
+        if not openclaw_binary or not os.path.exists(openclaw_binary):
+            print(f"   ❌ OpenClaw binary not found!")
+            print(f"      Add 'openclawBinary' to config.json with full path")
+            return None
+        
+        print(f"   Using: {openclaw_binary}")
+        
         # Create temp file with the message
         temp_msg = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8')
         temp_msg.write(text)
@@ -235,7 +256,7 @@ def send_to_openclaw(text):
         # Send via openclaw CLI
         # This simulates typing the message in the terminal
         result = subprocess.run(
-            ["openclaw", "chat", "send", "--message", text, "--session", "main"],
+            [openclaw_binary, "chat", "send", "--message", text, "--session", "main"],
             capture_output=True,
             text=True,
             timeout=30
@@ -249,7 +270,7 @@ def send_to_openclaw(text):
             # Fallback: inject as system event
             print(f"   Trying alternative method...")
             result = subprocess.run(
-                ["openclaw", "inject", text],
+                [openclaw_binary, "inject", text],
                 capture_output=True,
                 text=True,
                 timeout=5

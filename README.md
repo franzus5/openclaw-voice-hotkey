@@ -108,6 +108,7 @@ Edit `config.json`:
   "ttsEngine": "piper",
   "language": "uk",
   "inputDevice": null,
+  "openclawBinary": "/Users/YOUR_USERNAME/.nvm/versions/node/v24.13.0/bin/openclaw",
   "piperBinary": "./bin/piper",
   "piperModelUK": "./models/tts/uk_UA-lada-x_low.onnx",
   "piperModelEN": "./models/tts/en_US-lessac-medium.onnx",
@@ -135,6 +136,9 @@ Edit `config.json`:
   - `null`: use system default
   - `2`: use device #2 (e.g., headset microphone)
   - Check device list when starting the assistant
+- `openclawBinary`: Full path to OpenClaw CLI (auto-detected if not set)
+  - Example: `~/.nvm/versions/node/v24.13.0/bin/openclaw`
+  - If OpenClaw is not in PATH, set this explicitly
 - `piperModelUK`: Path to Ukrainian voice model
 - `piperModelEN`: Path to English voice model
 
